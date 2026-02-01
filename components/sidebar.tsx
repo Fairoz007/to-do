@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button"
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: CheckSquare, label: "My Task", href: "/tasks" },
-  { icon: Calendar, label: "Calendar", href: "/calendar" },
+  { icon: Calendar, label: "Calendar", href: "/calendar" }, // Keep for now
+  { icon: FileText, label: "Monthly Overview", href: "/monthly" },
   { icon: History, label: "Work History", href: "/work-history" },
 ]
 
@@ -24,7 +25,7 @@ export function Sidebar() {
   const isActive = (href: string) => pathname === href
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border pt-6 px-4 overflow-y-auto">
+    <aside className="hidden md:block fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border pt-6 px-4 overflow-y-auto">
       <div className="space-y-8">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-3 px-4 py-2 hover:opacity-80 transition">

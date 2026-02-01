@@ -6,12 +6,42 @@ import { TaskCardEnhanced } from "./task-card-enhanced"
 import { FilterBar } from "./filter-bar"
 import { ClipboardList } from "lucide-react"
 
+import { useFilter } from "./filter-context"
+import { isToday, startOfDay, addDays } from "date-fns"
+
+import { useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
+
 export function TaskListEnhanced() {
-  const { tasks, isLoading } = useTasks()
+  const { activeFilter } = useFilter()
+
+  // Construct filter args for server-side processing
+  const filterArgs: any = {}
+
+  const now = new Date()
+
+  if (activeFilter === 'completed') {
+    filterArgs.status = 'completed'
+  } else if (activeFilter === 'today') {
+    filterArgs.isDueToday = true
+  } else if (activeFilter === 'overdue') {
+    filterArgs.isOverdue = true
+  } else if (activeFilter === 'high') {
+    filterArgs.priority = 'high'
+  } else if (activeFilter === 'quick') {
+    filterArgs.quickTask = true
+  } else if (activeFilter === 'week') {
+    filterArgs.dueDateStart = now.getTime()
+    filterArgs.dueDateEnd = now.getTime() + (7 * 24 * 60 * 60 * 1000)
+  }
+
+  // Fetch tasks directly based on filters (Server Side Filter)
+  const tasks = useQuery(api.tasks.list, filterArgs) || []
+  const isLoading = tasks === undefined
   const [selectedStatus, setSelectedStatus] = useState<TaskStatus | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
 
-  // Filter and search tasks
+  // Client-side search and status filter (can be moved to backend too, but keeping for responsiveness on small lists)
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
       const matchesStatus = !selectedStatus || task.status === selectedStatus
@@ -19,6 +49,7 @@ export function TaskListEnhanced() {
         !searchQuery ||
         task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (task.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
+
       return matchesStatus && matchesSearch
     })
   }, [tasks, selectedStatus, searchQuery])

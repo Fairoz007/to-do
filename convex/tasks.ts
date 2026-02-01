@@ -14,15 +14,61 @@ const getUserId = async (ctx: any): Promise<string | null> => {
  * Get all tasks for the authenticated user (latest first)
  */
 export const list = query({
-  args: {}, // ✅ REQUIRED even if no arguments
-  handler: async (ctx) => {
+  args: {
+    status: v.optional(v.string()),
+    priority: v.optional(v.string()),
+    dueDateStart: v.optional(v.number()),
+    dueDateEnd: v.optional(v.number()),
+    isOverdue: v.optional(v.boolean()),
+    isDueToday: v.optional(v.boolean()),
+    quickTask: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
     const userId = await getUserId(ctx);
     if (!userId) return [];
-    return await ctx.db
+
+    let tasks = await ctx.db
       .query("tasks")
-      .withIndex("by_userId_createdAt", (q) => q.eq("userId", userId))
-      .order("desc")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
+
+    if (args.status) {
+      if (args.status === "completed") {
+        tasks = tasks.filter(t => t.status === "completed");
+      } else {
+        tasks = tasks.filter(t => t.status !== "completed");
+      }
+    }
+
+    if (args.priority) {
+      tasks = tasks.filter(t => t.priority === args.priority);
+    }
+
+    if (args.dueDateStart && args.dueDateEnd) {
+      tasks = tasks.filter(t => t.dueDate && t.dueDate >= args.dueDateStart! && t.dueDate <= args.dueDateEnd!);
+    }
+
+    const now = Date.now();
+
+    if (args.isOverdue) {
+      tasks = tasks.filter(t => t.dueDate && t.dueDate < now && t.status !== "completed");
+    }
+
+    if (args.isDueToday) {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+
+      tasks = tasks.filter(t => t.dueDate && t.dueDate >= todayStart.getTime() && t.dueDate <= todayEnd.getTime());
+    }
+
+    if (args.quickTask) {
+      tasks = tasks.filter(t => (t.timeAllowed || 0) > 0 && (t.timeAllowed || 0) <= 30 * 60 * 1000);
+    }
+
+    // Default sort: Descending by creation if not specific logic (frontend sorts too, but good to have base order)
+    return tasks.sort((a, b) => b.createdAt - a.createdAt);
   },
 });
 
@@ -34,7 +80,8 @@ export const create = mutation({
     title: v.string(),
     description: v.optional(v.string()),
     priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"))),
-    dueDate: v.optional(v.number()),
+    dueDate: v.number(),
+    timeAllowed: v.number(),
   },
   handler: async (ctx, args) => {
     const userId = await getUserId(ctx);
@@ -46,6 +93,7 @@ export const create = mutation({
       status: "pending",
       priority: args.priority ?? "medium",
       dueDate: args.dueDate,
+      timeAllowed: args.timeAllowed,
       totalTimeSpent: 0,
       timerSessions: [],
       createdAt: Date.now(),
@@ -90,6 +138,7 @@ export const update = mutation({
     description: v.optional(v.string()),
     priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"))),
     dueDate: v.optional(v.number()),
+    timeAllowed: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await getUserId(ctx);
@@ -116,7 +165,7 @@ export const remove = mutation({
     if (!userId) throw new ConvexError("Unauthenticated");
     const task = await ctx.db.get(args.id);
     if (!task || task.userId !== userId) throw new Error("Unauthorized");
-    
+
     await ctx.db.delete(args.id);
   },
 });

@@ -24,6 +24,7 @@ export interface Task {
   dueDate?: number
   createdAt: number
   completedAt?: number
+  timeAllowed?: number
   totalTimeSpent?: number
   timerSessions?: TimerSession[]
   currentTimerStart?: number
@@ -33,7 +34,8 @@ interface CreateTaskArgs {
   title: string
   description?: string
   priority?: TaskPriority
-  dueDate?: number
+  dueDate: number
+  timeAllowed: number
 }
 
 interface TaskContextType {

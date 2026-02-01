@@ -37,7 +37,7 @@ export function WorkHistory() {
           new Date(b.completedAt).getTime() -
           new Date(a.completedAt).getTime()
       )
-    
+
     return completed
   }, [tasks])
 
@@ -50,25 +50,25 @@ export function WorkHistory() {
       }
     }
 
-    const totalSeconds = workHistory.reduce((sum, item) => sum + item.totalTimeSpent, 0)
-    const hours = Math.floor(totalSeconds / 3600)
-    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const totalMs = workHistory.reduce((sum, item) => sum + item.totalTimeSpent, 0)
+    const hours = Math.floor(totalMs / (1000 * 60 * 60))
+    const minutes = Math.floor((totalMs % (1000 * 60 * 60)) / (1000 * 60))
 
-    const avgSeconds = Math.round(totalSeconds / workHistory.length)
-    const avgHours = Math.floor(avgSeconds / 3600)
-    const avgMinutes = Math.floor((avgSeconds % 3600) / 60)
+    const avgMs = Math.round(totalMs / workHistory.length)
+    const avgHours = Math.floor(avgMs / (1000 * 60 * 60))
+    const avgMinutes = Math.floor((avgMs % (1000 * 60 * 60)) / (1000 * 60))
 
     return {
       totalCompleted: workHistory.length,
       totalTime: `${hours}h ${minutes}m`,
-      avgTimePerTask: avgSeconds,
+      avgTimePerTask: avgMs,
       avgTimePerTaskFormatted: avgHours > 0 ? `${avgHours}h ${avgMinutes}m` : `${avgMinutes}m`,
     }
   }, [workHistory])
 
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
+  const formatTime = (ms: number) => {
+    const hours = Math.floor(ms / (1000 * 60 * 60))
+    const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60))
     if (hours > 0) {
       return `${hours}h ${minutes}m`
     }
@@ -168,17 +168,17 @@ export function WorkHistory() {
                           {formatTime(item.totalTimeSpent)}
                         </span>
                         <span>
-                          {item.completedAt 
+                          {item.completedAt
                             ? (() => {
-                                try {
-                                  const date = typeof item.completedAt === 'string' 
-                                    ? parseISO(item.completedAt)
-                                    : new Date(item.completedAt)
-                                  return format(date, "MMM d, yyyy")
-                                } catch {
-                                  return "N/A"
-                                }
-                              })()
+                              try {
+                                const date = typeof item.completedAt === 'string'
+                                  ? parseISO(item.completedAt)
+                                  : new Date(item.completedAt)
+                                return format(date, "MMM d, yyyy")
+                              } catch {
+                                return "N/A"
+                              }
+                            })()
                             : "N/A"}
                         </span>
                       </div>

@@ -25,10 +25,12 @@ export default defineSchema({
       v.literal("medium"),
       v.literal("high")
     ),
-    dueDate: v.optional(v.number()),
+    dueDate: v.number(),
     createdAt: v.number(),
     completedAt: v.optional(v.number()),
-    
+    timeAllowed: v.optional(v.number()), // milliseconds
+
+
     // Timer tracking
     totalTimeSpent: v.optional(v.number()), // milliseconds
     timerSessions: v.optional(v.array(
@@ -40,7 +42,8 @@ export default defineSchema({
       })
     )),
     currentTimerStart: v.optional(v.number()), // For active timer
-    
+    tags: v.optional(v.array(v.string())),
+
   })
     .index("by_userId", ["userId"])
     .index("by_userId_createdAt", ["userId", "createdAt"])
@@ -49,4 +52,13 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_dueDate", ["dueDate"])
     .index("by_completedAt", ["completedAt"]),
+
+  comments: defineTable({
+    taskId: v.id("tasks"),
+    userId: v.string(), // Clerk user ID
+    content: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_taskId", ["taskId"])
+    .index("by_userId", ["userId"]),
 });

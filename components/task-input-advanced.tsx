@@ -5,16 +5,30 @@ import { useTasks } from "./task-context"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar as CalendarIcon, Flag } from "lucide-react"
+import { Calendar as CalendarIcon, Flag, Clock } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 type Priority = "low" | "medium" | "high"
+type TimeUnit = "minutes" | "hours" | "days"
 
-export function TaskInputAdvanced() {
+interface TaskInputAdvancedProps {
+  onSuccess?: () => void
+}
+
+export function TaskInputAdvanced({ onSuccess }: TaskInputAdvancedProps = {}) {
   const [title, setTitle] = useState("")
   const [priority, setPriority] = useState<Priority>("medium")
   const [dueDate, setDueDate] = useState<Date | undefined>()
+  const [timeVal, setTimeVal] = useState("")
+  const [timeUnit, setTimeUnit] = useState<TimeUnit>("hours")
   const { createTask } = useTasks()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,15 +36,31 @@ export function TaskInputAdvanced() {
     if (!title.trim() || !dueDate) return
 
     try {
+      let timeAllowed: number = 0
+      const val = parseFloat(timeVal)
+      if (!isNaN(val) && val > 0) {
+        if (timeUnit === "minutes") timeAllowed = val * 60 * 1000
+        else if (timeUnit === "hours") timeAllowed = val * 60 * 60 * 1000
+        else if (timeUnit === "days") timeAllowed = val * 24 * 60 * 60 * 1000
+      }
+
+      if (timeAllowed <= 0) return // Check again just in case
+
       await createTask({
         title: title.trim(),
         priority,
         dueDate: dueDate.getTime(),
+        timeAllowed,
       })
       // Reset form
       setTitle("")
       setPriority("medium")
       setDueDate(undefined)
+      setTimeVal("")
+      setTimeUnit("hours")
+
+      // Close modal/drawer if applicable
+      if (onSuccess) onSuccess()
     } catch (err) {
       console.error("Failed to create task:", err)
     }
@@ -42,7 +72,7 @@ export function TaskInputAdvanced() {
     high: "border-red-500/30 bg-red-500/10",
   }
 
-  const isFormValid = title.trim() && dueDate
+  const isFormValid = title.trim() && dueDate && (parseFloat(timeVal) > 0)
 
   return (
     <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
@@ -75,11 +105,10 @@ export function TaskInputAdvanced() {
                   key={p}
                   type="button"
                   onClick={() => setPriority(p)}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium capitalize transition border ${
-                    priority === p
-                      ? priorityColors[p]
-                      : "border-transparent bg-secondary hover:bg-secondary/80"
-                  }`}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium capitalize transition border ${priority === p
+                    ? priorityColors[p]
+                    : "border-transparent bg-secondary hover:bg-secondary/80"
+                    }`}
                 >
                   {p}
                 </button>
@@ -98,9 +127,8 @@ export function TaskInputAdvanced() {
                 <Button
                   type="button"
                   variant="outline"
-                  className={`w-full h-10 justify-start text-left font-normal ${
-                    !dueDate ? "text-muted-foreground" : "text-foreground"
-                  }`}
+                  className={`w-full h-10 justify-start text-left font-normal ${!dueDate ? "text-muted-foreground" : "text-foreground"
+                    }`}
                 >
                   {dueDate ? format(dueDate, "MMM d, yyyy") : "Pick a date..."}
                 </Button>
@@ -117,11 +145,41 @@ export function TaskInputAdvanced() {
           </div>
         </div>
 
+        {/* Time Allowed */}
+        <div>
+          <label className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+            <Clock className="size-4" />
+            Time Allowed <span className="text-destructive">*</span>
+          </label>
+          <div className="flex gap-2">
+            <Input
+              type="number"
+              min="0"
+              step="0.5"
+              placeholder="Duration..."
+              value={timeVal}
+              onChange={(e) => setTimeVal(e.target.value)}
+              className="flex-1"
+            />
+            <Select value={timeUnit} onValueChange={(v) => setTimeUnit(v as TimeUnit)}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="minutes">Minutes</SelectItem>
+                <SelectItem value="hours">Hours</SelectItem>
+                <SelectItem value="days">Days</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
         {/* Summary */}
-        {dueDate && (
+        {(dueDate || (timeVal && parseFloat(timeVal) > 0)) && (
           <div className="bg-secondary/50 rounded-lg p-3 text-sm text-muted-foreground space-y-1">
+            {dueDate && <div>📅 Due: <span className="font-medium text-foreground">{format(dueDate, "MMMM d, yyyy")}</span></div>}
+            {timeVal && parseFloat(timeVal) > 0 && <div>⏱️ Time Allowed: <span className="font-medium text-foreground">{timeVal} {timeUnit}</span></div>}
             <div>🎯 Priority: <span className="capitalize font-medium text-foreground">{priority}</span></div>
-            <div>📅 Due: <span className="font-medium text-foreground">{format(dueDate, "MMMM d, yyyy")}</span></div>
           </div>
         )}
 
@@ -139,3 +197,4 @@ export function TaskInputAdvanced() {
     </div>
   )
 }
+

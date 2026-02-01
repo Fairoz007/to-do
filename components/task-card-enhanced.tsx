@@ -6,7 +6,9 @@ import { TaskTimer } from "./task-timer"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Check, Trash2, Clock, CircleDot, CheckCircle2, Play, Flag, Calendar } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { TaskComments } from "./task-comments"
+import { Check, Trash2, Clock, CircleDot, CheckCircle2, Play, Flag, Calendar, MessageSquare } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 
 interface TaskCardEnhancedProps extends Task {
@@ -66,8 +68,10 @@ export function TaskCardEnhanced({
   createdAt,
   totalTimeSpent,
   currentTimerStart,
+  timeAllowed,
 }: TaskCardEnhancedProps) {
   const { updateTaskStatus, deleteTask } = useTasks()
+  const [showComments, setShowComments] = React.useState(false)
 
   const config = getStatusConfig(status)
   const priorityInfo = priorityConfig[priority]
@@ -89,19 +93,19 @@ export function TaskCardEnhanced({
   }
 
   const isOverdue =
-    dueDate && new Date(dueDate).getTime() < Date.now() && status !== "closed"
+    dueDate && new Date(dueDate).getTime() < Date.now() && (status as string) !== "closed"
 
   return (
-    <Card className="overflow-hidden bg-card border-border hover:border-primary/30 transition-all hover:shadow-md">
+    <Card className={`overflow-hidden bg-card border-border transition-all hover:shadow-md ${isOverdue ? "shadow-[0_0_15px_-3px_rgba(239,68,68,0.3)] border-destructive/50" : "hover:border-primary/30"
+      }`}>
       <CardContent className="p-4 sm:p-6">
         <div className="space-y-3">
           {/* Title & Status */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
               <h3
-                className={`font-semibold text-card-foreground truncate ${
-                  status === "closed" ? "line-through opacity-60" : ""
-                }`}
+                className={`font-semibold text-card-foreground truncate ${(status as string) === "closed" ? "line-through opacity-60" : ""
+                  }`}
               >
                 {title}
               </h3>
@@ -130,11 +134,10 @@ export function TaskCardEnhanced({
             {/* Due Date */}
             {dueDate && (
               <div
-                className={`px-2 py-1 rounded-full flex items-center gap-1 ${
-                  isOverdue
-                    ? "bg-destructive/20 text-destructive"
-                    : "bg-secondary text-muted-foreground"
-                }`}
+                className={`px-2 py-1 rounded-full flex items-center gap-1 ${isOverdue
+                  ? "bg-destructive/20 text-destructive"
+                  : "bg-secondary text-muted-foreground"
+                  }`}
               >
                 <Calendar className="size-3" />
                 {new Date(dueDate).toLocaleDateString()}
@@ -147,7 +150,36 @@ export function TaskCardEnhanced({
               <Clock className="size-3" />
               {formatDistanceToNow(new Date(createdAt), { addSuffix: true })}
             </div>
+
+            {/* Time Allowed */}
+            {timeAllowed && (
+              <div className="px-2 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                <Clock className="size-3" />
+                Allowed: {Math.round(timeAllowed / (1000 * 60 * 60) * 10) / 10}h
+              </div>
+            )}
           </div>
+
+          {/* Progress Bar for Time Tracking */}
+          {timeAllowed && (
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Time Spent</span>
+                <span className={((totalTimeSpent || 0) > timeAllowed) ? "text-destructive font-bold" : ""}>
+                  {Math.round((totalTimeSpent || 0) / (1000 * 60))}m / {Math.round(timeAllowed / (1000 * 60))}m
+                </span>
+              </div>
+              <Progress
+                value={Math.min(((totalTimeSpent || 0) / timeAllowed) * 100, 100)}
+                className={`h-1.5 ${((totalTimeSpent || 0) > timeAllowed) ? "[&>div]:bg-destructive" : ""}`}
+              />
+              {(totalTimeSpent || 0) > timeAllowed && (
+                <p className="text-xs text-destructive font-medium flex items-center gap-1">
+                  <Clock className="size-3" /> Time limit exceeded
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2 pt-2 border-t border-border/50">
@@ -158,7 +190,29 @@ export function TaskCardEnhanced({
               currentTimerStart={currentTimerStart}
               taskStatus={status}
             />
-            
+
+            {/* Finish Task Button */}
+            {status !== "completed" && (
+              <Button
+                size="sm"
+                onClick={() => updateTaskStatus(_id, "completed")}
+                className="bg-success text-success-foreground hover:bg-success/90 rounded-full h-8 px-4"
+              >
+                <Check className="size-4 mr-1.5" />
+                Finish Task
+              </Button>
+            )}
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowComments(!showComments)}
+              className={`h-8 w-8 p-0 text-muted-foreground hover:text-primary ${showComments ? "bg-secondary" : ""}`}
+            >
+              <MessageSquare className="size-4" />
+              <span className="sr-only">Toggle comments</span>
+            </Button>
+
             <Button
               variant="ghost"
               size="sm"
@@ -169,6 +223,8 @@ export function TaskCardEnhanced({
               <span className="sr-only">Delete task</span>
             </Button>
           </div>
+
+          {showComments && <TaskComments taskId={_id as any} />}
         </div>
       </CardContent>
     </Card>
